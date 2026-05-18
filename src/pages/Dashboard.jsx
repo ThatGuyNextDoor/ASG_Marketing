@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [batchOpen, setBatchOpen] = useState(false)
   const [batchRunning, setBatchRunning] = useState(false)
   const [batchProgress, setBatchProgress] = useState('')
+  const [batchError, setBatchError] = useState('')
   const [batchCompleted, setBatchCompleted] = useState(0)
   const [batchTotal, setBatchTotal] = useState(0)
   const [weekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0])
@@ -120,8 +121,9 @@ export default function Dashboard() {
     setBatchCompleted(0)
     setBatchTotal(totalBatchPosts)
     setBatchProgress('Starting batch generation...')
+    setBatchError('')
     try {
-      await generateWeekBatch({
+      const generated = await generateWeekBatch({
         weekStart,
         postingSchedule: DEFAULT_SCHEDULE,
         onProgress: setBatchProgress,
@@ -130,9 +132,11 @@ export default function Dashboard() {
           setBatchTotal(total)
         }
       })
+      console.log(`Batch complete — ${generated.length} posts saved`)
       navigate('/approvals')
     } catch (err) {
-      setBatchProgress('Batch failed: ' + err.message)
+      console.error('Batch generation failed:', err)
+      setBatchError('Batch failed: ' + (err.message || String(err)))
       setBatchRunning(false)
     }
   }
@@ -189,6 +193,12 @@ export default function Dashboard() {
               Week of {format(new Date(weekStart), 'd MMMM')} —{' '}
               {Object.entries(DEFAULT_SCHEDULE).map(([p, n]) => `${n} ${p}`).join(', ')} — {totalBatchPosts} posts total
             </p>
+            {batchError && (
+              <div className="mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <p className="text-sm text-red-700 font-sans">{batchError}</p>
+                <p className="text-xs text-red-400 font-sans mt-1">Check the browser console for details.</p>
+              </div>
+            )}
             {batchRunning && (
               <div className="mt-4 space-y-2">
                 <div className="flex items-center gap-3">

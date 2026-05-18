@@ -200,7 +200,9 @@ export async function generateWeekBatch({
         description: brief.adDescription
       }) : null
 
-      const { data: post } = await supabase
+      console.log(`Saving post ${i + 1}/${total} to Supabase: ${item.platform} — ${item.pillar}`)
+
+      const { data: post, error: insertError } = await supabase
         .from('posts')
         .insert({
           platform: item.platform,
@@ -223,6 +225,12 @@ export async function generateWeekBatch({
         .select()
         .single()
 
+      if (insertError) {
+        console.error(`Post ${i + 1} Supabase insert failed:`, insertError)
+        throw insertError
+      }
+
+      console.log(`Post ${i + 1} saved — id: ${post?.id}`)
       generated.push({ ...post, brief })
       onPostComplete?.(post, i + 1, total)
 

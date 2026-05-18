@@ -25,6 +25,14 @@ export default function PostCard({ post, onClick, selected, onSelect, showCheckb
             <div className="flex flex-wrap gap-2 items-center mb-2">
               <PlatformBadge platform={post.platform} />
               <StatusBadge status={post.status} />
+              {(() => {
+                const t = post.image_prompt?.match(/TEMPLATE (\w+)/)?.[1]
+                return t ? (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-semibold font-sans">
+                    {t}
+                  </span>
+                ) : null
+              })()}
               {post.scheduled_date && (
                 <span className="text-xs text-gray-400">
                   {format(parseISO(post.scheduled_date), 'd MMM yyyy')}

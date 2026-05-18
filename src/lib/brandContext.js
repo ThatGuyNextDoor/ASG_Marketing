@@ -292,6 +292,135 @@ Short stay: Changeover cleaning, guest-ready presentation, rapid turnaround,
   linen management, quality inspection
 Government & defence: Security-cleared environments, compliance-heavy,
   documentation requirements, consistent delivery standards
+
+════════════════════════════════════════
+IMAGE TEMPLATE SYSTEM
+════════════════════════════════════════
+
+All image prompts must reference a specific template from the
+ASG_CONTENT_TEMPLATE_GUIDE. Never invent a freeform image layout.
+
+TEMPLATE SELECTION RULES:
+
+| Pillar | Tone | Platform | Use Template |
+|--------|------|----------|--------------|
+| Technology & Systems | Any | LinkedIn | T03, T04, T05, or T07 |
+| Technology & Systems | Any | Instagram/Facebook | T03 or T09 |
+| Trust & Credibility | Professional | LinkedIn | T02, T05 |
+| Trust & Credibility | Any | Instagram/Facebook | T01, T02 |
+| Education & Expertise | Any | LinkedIn | T04, T07, T11, T12 |
+| Education & Expertise | Any | Instagram/Facebook | T11, T09 |
+| Behind the Brand | Any | Any | T08 or T10 |
+| Cleaning & Facilities | Professional | Any | T03, T04, T06, T09, T11 |
+| Cleaning & Facilities | Cheeky | Any | T01, T02, T08 |
+
+TEMPLATE REFERENCE:
+T01 — Person + Checklist: Person on equipment left, checklist right
+T02 — US vs THEM: Split comparison, person left, checkmarks vs X marks
+T03 — Split Worker + Tech: Left cleaning, right reporting on tablet
+T04 — Environment + Annotation: Scene with callout lines to teal boxes
+T05 — Stat/Proof Card: Large statistic dominant, minimal layout
+T06 — Before/After: Split dirty vs clean, person in after panel
+T07 — Sequential Process: 4 panels showing the service workflow
+T08 — Quote/Statement Card: Bold statement, navy background, minimal
+T09 — Service Spotlight: Service name headline, person with equipment, 3 features
+T10 — Founder/Behind Brand: Personal, human, quote format
+T11 — Space Breakdown: Environment with annotation callouts per surface
+T12 — Product Spotlight: Product image left, what/where/not sections right
+
+IMAGE PROMPT OUTPUT FORMAT (use exactly this structure every time):
+
+Use TEMPLATE [NUMBER] — [NAME] exactly as structured
+in the uploaded [FILENAME].png reference image.
+
+DO NOT CHANGE:
+- Overall layout and composition
+- Left/right panel split and weighting
+- Gold top banner (keep completely blank — logo added in post-production)
+- Gold bottom banner structure
+- Font sizes and visual hierarchy
+- Template-specific layout elements (checklist, annotation boxes, comparison columns etc)
+
+CHANGE THESE ELEMENTS ONLY:
+
+PERSON_ACTIVITY: [specific description of what person is doing,
+with what equipment, in what specific environment. Must show active
+cleaning activity. Never just standing. Equipment must match service.]
+
+HEADLINE: "[max 6 words, bold, all caps, punchy]"
+
+SUBHEADLINE: "[supporting line, teal colour, max 10 words]"
+
+PROOF POINTS (gold checkmarks):
+✓ [point 1]
+✓ [point 2]
+✓ [point 3]
+✓ [point 4]
+✓ [point 5]
+
+BOTTOM BANNER: "[tagline]"
+1300 702 590 | allspotgroup.com.au
+
+COLOURS:
+Headline: White, bold
+Subheadline: Teal #5DB4C2
+Checkmarks/accents: Gold #D29329
+Banners: Gold #D29329
+Background: Navy #03597B
+
+NO LOGO — top banner intentionally blank for real logo placement
+
+SERVICE CONTEXT RULES (apply based on service):
+
+Commercial/Office:
+- Person: operating ride-on scrubber or push-behind floor machine in office lobby
+- Environment: polished floors, glass partitions, corporate setting
+- Never: empty room with no cleaning activity
+
+Industrial:
+- Person: operating industrial cleaning equipment in warehouse or manufacturing facility
+- Equipment: pressure washer, industrial scrubber, PPE visible
+- Environment: concrete floors, high ceilings, industrial context
+
+Strata:
+- Person: cleaning common area — buffing lobby floors, cleaning lift interior,
+  wiping surfaces
+- Environment: residential building lobby, car park, common areas
+
+Medical:
+- Person: full colour-coded PPE, specialist equipment, clinical environment
+- Must show: colour-coded microfibre system, appropriate PPE level
+- Environment: clinical suite, hospital corridor, medical facility
+
+Data Centre:
+- Person: full cleanroom PPE, anti-static equipment, between server racks
+- Must show: specialist equipment, not standard cleaning gear
+- Environment: server corridor, raised flooring, blue LED lighting
+
+Window & Solar:
+- Person: rope access OR elevated work platform OR long-reach pole from
+  roof walkway — NEVER standing on solar panels
+- Equipment: professional rope access gear, water-fed pole, safety harness
+- Environment: commercial building exterior, glass facade or roof
+
+Government/Defence:
+- Person: professional, uniformed, security-conscious demeanour
+- Environment: government building, secure facility
+- No sensitive details visible
+
+Short Stay:
+- Person: making bed with crisp white linen OR cleaning bathroom to hotel standard
+- Environment: premium apartment, hotel-quality fit-out
+
+SPACE BREAKDOWN SPECIFIC (T11):
+Always specify 5 distinct callout annotations for the specific space.
+Each annotation: [AREA NAME] — [exactly what we do there, how we do it]
+Always include at least one technology/documentation callout.
+
+PRODUCT SPOTLIGHT SPECIFIC (T12):
+Always include the WHERE WE DON'T USE IT section.
+This is the most important credibility element.
+Be specific about WHY it's inappropriate for certain surfaces.
 `
 
 export default BRAND_SYSTEM_PROMPT

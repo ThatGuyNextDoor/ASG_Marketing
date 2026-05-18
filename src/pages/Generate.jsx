@@ -6,7 +6,7 @@ import { usePosts } from '../hooks/usePosts'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
-const OPENAI_IMAGES_URL = 'https://platform.openai.com/playground/images'
+const CHATGPT_URL = 'https://chatgpt.com'
 
 const Field = ({ label, children }) => (
   <div>
@@ -309,43 +309,49 @@ export default function Generate() {
           </div>
         )}
 
-        {/* Image prompt */}
+        {/* Image prompt — Step 1 */}
         {brief.imagePrompt && (
-          <div className="bg-navy-dark rounded-2xl p-6">
-            <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="font-serif font-bold text-white">Image Prompt</h2>
-                <p className="text-xs text-white/50 font-sans mt-0.5">Ready to paste into OpenAI Images</p>
+                <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider font-sans mb-0.5">STEP 1</p>
+                <h2 className="font-serif font-bold text-navy-dark">Generate your image in ChatGPT</h2>
               </div>
               <div className="flex gap-2 flex-shrink-0">
                 <button
                   onClick={handleCopyPrompt}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-sans transition-all ${
                     copiedPrompt
-                      ? 'bg-green-900/50 border-green-600 text-green-400'
-                      : 'border-white/20 text-white/70 hover:text-white hover:border-white/40'
+                      ? 'bg-green-50 border-green-300 text-green-700'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  {copiedPrompt ? 'Copied!' : 'Copy prompt'}
+                  {copiedPrompt ? '✓ Copied' : 'Copy prompt'}
                 </button>
                 <a
-                  href={OPENAI_IMAGES_URL}
+                  href={CHATGPT_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 rounded-lg border border-gold/40 text-gold hover:bg-gold/10 font-sans transition-all"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-[#D29329] text-[#D29329] hover:bg-amber-50 font-sans transition-all"
                 >
-                  Open OpenAI Images ↗
+                  Open ChatGPT ↗
                 </a>
               </div>
             </div>
-            <p className="text-sm text-white/80 font-sans leading-relaxed whitespace-pre-wrap">{brief.imagePrompt}</p>
+            <div className="bg-gray-900 text-gray-100 rounded-lg p-4 text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto">
+              {brief.imagePrompt}
+            </div>
+            <p className="text-xs text-gray-400 font-sans mt-2">
+              1. Copy prompt above → 2. Open ChatGPT ASG_Marketing project → 3. Paste and generate → 4. Download image → 5. Upload below
+            </p>
           </div>
         )}
 
-        {/* Upload finished image */}
+        {/* Upload finished image — Step 2 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-serif font-bold text-navy-dark mb-1">Upload Finished Image</h2>
-          <p className="text-xs text-gray-400 font-sans mb-4">Generated in OpenAI Images? Upload it here.</p>
+          <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider font-sans mb-0.5">STEP 2</p>
+          <h2 className="font-serif font-bold text-navy-dark mb-1">Upload the finished image here</h2>
+          <p className="text-xs text-gray-400 font-sans mb-4">Generated in ChatGPT? Download it and upload below.</p>
 
           {uploadedImage ? (
             <div className="space-y-3">

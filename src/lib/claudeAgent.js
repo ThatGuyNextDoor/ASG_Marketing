@@ -66,6 +66,53 @@ ${assets.map(a => `- ${a.name} (${a.file_type}): ${a.description}`).join('\n') |
 
   onProgress?.('Generating content brief...')
 
+  const imagePromptInstruction = `
+Generate the IMAGE_PROMPT field using the ASG template system.
+
+Select the correct template based on:
+- Pillar: ${pillar}
+- Tone: ${tone}
+- Platform: ${platform}
+- Service: ${service}
+
+The IMAGE_PROMPT must follow this EXACT format — ready to copy and paste
+directly into ChatGPT with zero editing:
+
+Use TEMPLATE [XX] — [NAME] exactly as structured
+in the uploaded T[XX]_[Name].png reference image.
+
+DO NOT CHANGE:
+- Overall layout and composition
+- Left/right panel split and weighting
+- Gold top banner (keep completely blank — logo added in post-production)
+- Gold bottom banner structure
+- Font sizes and visual hierarchy
+- [template-specific layout elements e.g. checklist, annotation boxes, comparison columns]
+
+CHANGE THESE ELEMENTS ONLY:
+
+PERSON_ACTIVITY: [specific person + equipment + environment based on ${service} service context rules]
+
+HEADLINE: "[from the post HEADLINE_TEXT — max 6 words, all caps]"
+
+SUBHEADLINE: "[from the post SUBHEADLINE_TEXT — max 10 words]"
+
+PROOF POINTS (gold checkmarks):
+[from the post PROOF_POINTS, formatted as ✓ items]
+
+BOTTOM BANNER: "[from CTA_TEXT]"
+1300 702 590 | allspotgroup.com.au
+
+COLOURS:
+Headline: White, bold
+Subheadline: Teal #5DB4C2
+Checkmarks/accents: Gold #D29329
+Banners: Gold #D29329
+Background: Navy #03597B
+
+NO LOGO — top banner intentionally blank for real logo placement
+`
+
   const userPrompt = `
 Generate a complete content brief for the following post:
 
@@ -90,11 +137,7 @@ VISUAL_BRIEF:
 IMAGE_MODE: [BRAND_GRAPHIC / SCENE / PORTRAIT]
 
 IMAGE_PROMPT:
-[Detailed prompt for the OpenAI Visual Agent — be specific about:
-person description, expression, pose, uniform, background, lighting,
-headline text to include on the image, proof points to show,
-layout direction, brand colours. This goes directly to an image
-generation model so be precise and complete.]
+${imagePromptInstruction}
 
 HEADLINE_TEXT:
 [The main headline that appears ON the image — max 6 words, punchy]

@@ -1,5 +1,39 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { GENERATE_SYSTEM_PROMPT, AD_SYSTEM_PROMPT, BRAND_SYSTEM_PROMPT } from './brandContext'
+import BRAND_SYSTEM_PROMPT from './brandContext'
+
+const GENERATE_SYSTEM_PROMPT = `${BRAND_SYSTEM_PROMPT}
+
+OUTPUT FORMAT — respond with exactly this, nothing else:
+COPY:
+[post copy here]
+
+VISUAL_BRIEF:
+[2-3 sentences describing the ideal background image — lighting, subject, mood, composition — for image generation. No logos, no text in image, just the scene/background.]
+
+IMAGE_PROMPT:
+[Optimised prompt for the background image. Professional photography style, brand-appropriate. Specify: subject, environment, lighting, mood, colour temperature. Do NOT include logos, text, or people's faces.]`
+
+const AD_SYSTEM_PROMPT = `${BRAND_SYSTEM_PROMPT}
+
+You are generating META ADS copy for All Spot Group. Output format — respond with exactly this structure, nothing else:
+
+COPY:
+[post copy here]
+
+VISUAL_BRIEF:
+[2-3 sentences describing the ideal background image]
+
+IMAGE_PROMPT:
+[Optimised prompt for the background image]
+
+HEADLINE:
+[Max 40 characters — punchy, benefit-focused]
+
+PRIMARY_TEXT:
+[Max 125 characters — clear value proposition]
+
+DESCRIPTION:
+[Max 30 characters — supporting detail or CTA]`
 
 const client = new Anthropic({
   apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,

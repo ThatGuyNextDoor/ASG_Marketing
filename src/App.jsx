@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import Sidebar from './components/layout/Sidebar'
 import TopBar from './components/layout/TopBar'
@@ -11,6 +11,9 @@ import AllPosts from './pages/AllPosts'
 import BrandAssets from './pages/BrandAssets'
 import Performance from './pages/Performance'
 import VABoard from './pages/VABoard'
+import Approvals from './pages/Approvals'
+import Strategy from './pages/Strategy'
+import BulkImageUpload from './pages/BulkImageUpload'
 
 function AdminLayout({ children }) {
   return (
@@ -60,8 +63,11 @@ function AppRoutes() {
       <Route path="/calendar" element={<AdminLayout><Calendar /></AdminLayout>} />
       <Route path="/generate" element={<AdminLayout><Generate /></AdminLayout>} />
       <Route path="/posts" element={<AdminLayout><AllPosts /></AdminLayout>} />
+      <Route path="/approvals" element={<AdminLayout><Approvals /></AdminLayout>} />
       <Route path="/assets" element={<AdminLayout><BrandAssets /></AdminLayout>} />
       <Route path="/performance" element={<AdminLayout><Performance /></AdminLayout>} />
+      <Route path="/strategy" element={<AdminLayout><Strategy /></AdminLayout>} />
+      <Route path="/bulk-upload" element={<AdminLayout><BulkImageUpload /></AdminLayout>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )

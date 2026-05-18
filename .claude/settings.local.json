@@ -3,7 +3,8 @@
     "allow": [
       "PowerShell(New-Item *)",
       "PowerShell(cd \"C:\\\\Users\\\\Matthew\\\\asg-marketing\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'C:\\\\Users\\\\Matthew\\\\asg-marketing'; npm run dev\" -WindowStyle Normal; Start-Sleep -Seconds 3; Write-Host \"Dev server launched in new window\")",
-      "PowerShell(Get-ChildItem -Recurse -Path \"C:\\\\Users\\\\Matthew\\\\asg-marketing\\\\src\" -File | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\Matthew\\\\asg-marketing\\\\src\\\\\", \"src/\"\\) })"
+      "PowerShell(Get-ChildItem -Recurse -Path \"C:\\\\Users\\\\Matthew\\\\asg-marketing\\\\src\" -File | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\Matthew\\\\asg-marketing\\\\src\\\\\", \"src/\"\\) })",
+      "Bash(timeout 5)"
     ]
   }
 }

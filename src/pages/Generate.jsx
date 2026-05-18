@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { generatePostContent } from '../lib/anthropic'
-import { generateImages } from '../lib/openai'
+import { generatePostBrief } from '../lib/claudeAgent'
+import { supabase } from '../lib/supabase'
 import { usePosts } from '../hooks/usePosts'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+
+const OPENAI_IMAGES_URL = 'https://platform.openai.com/playground/images'
 
 const Field = ({ label, children }) => (
   <div>
@@ -24,22 +26,45 @@ const Select = ({ value, onChange, options }) => (
 )
 
 const PLATFORMS = ['LinkedIn', 'Instagram', 'Facebook', 'Google Business']
-const PILLARS = ['Technology & Systems', 'Trust & Credibility', 'Education & Expertise', 'Behind the Brand']
-const SERVICES = ['Commercial', 'Industrial', 'Strata', 'Medical', 'Data Centre', 'Window & Solar', 'Short Stay', 'General brand']
+const PILLARS = [
+  'Technology & Systems',
+  'Trust & Credibility',
+  'Education & Expertise',
+  'Behind the Brand',
+  'Cleaning & Facilities'
+]
+const SERVICES = [
+  'Commercial', 'Industrial', 'Strata', 'Medical',
+  'Data Centre', 'Window & Solar', 'Short Stay', 'General brand'
+]
+const TONES = ['auto', 'professional', 'challenger', 'cheeky']
 const AD_OBJECTIVES = ['Awareness', 'Traffic', 'Lead generation']
 const AUDIENCES = ['Facility managers', 'Strata managers', 'Business owners', 'Property directors']
 const CTAS = ['Get a free quote', 'Learn more', 'Contact us', 'Book a consultation']
+
+async function uploadImageFile(file) {
+  const ext = file.name.split('.').pop()
+  const fileName = `uploads/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+  const { data, error } = await supabase.storage
+    .from('post-images')
+    .upload(fileName, file, { contentType: file.type, upsert: true })
+  if (error) throw error
+  const { data: urlData } = supabase.storage.from('post-images').getPublicUrl(data.path)
+  return urlData.publicUrl
+}
 
 export default function Generate() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { createPost } = usePosts()
+  const fileInputRef = useRef(null)
 
   const [form, setForm] = useState({
     platform: 'LinkedIn',
     pillar: 'Technology & Systems',
     service: 'Commercial',
     postType: 'organic',
+    tone: 'auto',
     scheduledDate: searchParams.get('date') || '',
     extraDirection: '',
     adObjective: 'Awareness',
@@ -47,100 +72,121 @@ export default function Generate() {
     cta: 'Get a free quote',
   })
 
-  const [result, setResult] = useState(null)
-  const [images, setImages] = useState([])
-  const [selectedImage, setSelectedImage] = useState(null)
-  const [generatingCopy, setGeneratingCopy] = useState(false)
-  const [generatingImages, setGeneratingImages] = useState(false)
+  const [brief, setBrief] = useState(null)
+  const [copy, setCopy] = useState('')
+  const [uploadedImage, setUploadedImage] = useState(null)   // { preview, file, url }
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [progress, setProgress] = useState('')
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [step, setStep] = useState('form') // 'form' | 'review'
+  const [copiedText, setCopiedText] = useState(false)
+  const [copiedPrompt, setCopiedPrompt] = useState(false)
+  const [step, setStep] = useState('form')
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
 
+  const handleCopyText = () => {
+    navigator.clipboard.writeText(copy)
+    setCopiedText(true)
+    setTimeout(() => setCopiedText(false), 2000)
+  }
+
+  const handleCopyPrompt = () => {
+    navigator.clipboard.writeText(brief?.imagePrompt || '')
+    setCopiedPrompt(true)
+    setTimeout(() => setCopiedPrompt(false), 2000)
+  }
+
   const handleGenerate = async () => {
-    setGeneratingCopy(true)
+    setLoading(true)
     setError('')
-    setResult(null)
-    setImages([])
-    setSelectedImage(null)
+    setBrief(null)
+    setUploadedImage(null)
+    setProgress('Starting...')
+
     try {
-      const content = await generatePostContent({
+      const result = await generatePostBrief({
         platform: form.platform,
         pillar: form.pillar,
         service: form.service,
         postType: form.postType,
-        adObjective: form.postType === 'paid' ? form.adObjective : null,
-        targetAudience: form.postType === 'paid' ? form.targetAudience : null,
-        cta: form.postType === 'paid' ? form.cta : null,
+        tone: form.tone,
         extraDirection: form.extraDirection,
+        scheduledDate: form.scheduledDate,
+        onProgress: setProgress
       })
-      setResult(content)
+      setBrief(result)
+      setCopy(result.copy)
       setStep('review')
-
-      if (content.image_prompt) {
-        setGeneratingImages(true)
-        try {
-          const imgs = await generateImages(content.image_prompt)
-          setImages(imgs)
-          setSelectedImage(imgs[0])
-        } catch (e) {
-          setError('Images failed to generate — copy was saved. ' + e.message)
-        } finally {
-          setGeneratingImages(false)
-        }
-      }
     } catch (e) {
       setError('Generation failed: ' + e.message)
     } finally {
-      setGeneratingCopy(false)
+      setLoading(false)
+      setProgress('')
     }
   }
 
   const handleRegenerateCopy = async () => {
-    setGeneratingCopy(true)
+    setLoading(true)
     setError('')
+    setProgress('Regenerating...')
     try {
-      const content = await generatePostContent({
+      const result = await generatePostBrief({
         platform: form.platform,
         pillar: form.pillar,
         service: form.service,
         postType: form.postType,
-        adObjective: form.postType === 'paid' ? form.adObjective : null,
-        targetAudience: form.postType === 'paid' ? form.targetAudience : null,
-        cta: form.postType === 'paid' ? form.cta : null,
+        tone: form.tone,
         extraDirection: form.extraDirection,
+        scheduledDate: form.scheduledDate,
+        onProgress: setProgress
       })
-      setResult(content)
+      setBrief(result)
+      setCopy(result.copy)
     } catch (e) {
       setError('Regeneration failed: ' + e.message)
     } finally {
-      setGeneratingCopy(false)
+      setLoading(false)
+      setProgress('')
     }
   }
 
-  const handleRegenerateImages = async () => {
-    if (!result?.image_prompt) return
-    setGeneratingImages(true)
+  const handleFileSelect = async (file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    const preview = URL.createObjectURL(file)
+    setUploadedImage({ preview, file, url: null })
+    setUploadingImage(true)
     try {
-      const imgs = await generateImages(result.image_prompt)
-      setImages(imgs)
-      setSelectedImage(imgs[0])
+      const url = await uploadImageFile(file)
+      setUploadedImage({ preview, file, url })
     } catch (e) {
-      setError('Image regeneration failed: ' + e.message)
+      setError('Image upload failed: ' + e.message)
+      setUploadedImage(null)
     } finally {
-      setGeneratingImages(false)
+      setUploadingImage(false)
     }
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files[0]
+    handleFileSelect(file)
   }
 
   const handleSave = async (status) => {
     setSaving(true)
+    setError('')
     try {
-      const adVariant = result.headline ? [
-        `HEADLINE: ${result.headline}`,
-        `PRIMARY TEXT: ${result.primary_text}`,
-        `DESCRIPTION: ${result.description}`,
-      ].join('\n') : null
+      const adVariant = brief?.adHeadline ? JSON.stringify({
+        headline: brief.adHeadline,
+        primary: brief.adPrimary,
+        description: brief.adDescription
+      }) : null
+
+      const finalStatus = uploadedImage?.url ? status : 'draft'
 
       await createPost({
         platform: form.platform,
@@ -148,12 +194,18 @@ export default function Generate() {
         service: form.service,
         post_type: form.postType,
         scheduled_date: form.scheduledDate || null,
-        copy: result.copy,
-        visual_brief: result.visual_brief,
-        generated_images: images,
-        selected_image_url: selectedImage,
+        copy,
+        visual_brief: brief?.visualBrief || '',
+        image_mode: brief?.imageMode || '',
+        image_prompt: brief?.imagePrompt || '',
+        headline_text: brief?.headlineText || '',
+        subheadline_text: brief?.subheadlineText || '',
+        proof_points: brief?.proofPoints || '',
+        cta_text: brief?.ctaText || '',
+        canva_notes: brief?.canvaNotes || '',
+        selected_image_url: uploadedImage?.url || null,
         ad_variant: adVariant,
-        status,
+        status: finalStatus,
       })
       navigate('/posts')
     } catch (e) {
@@ -163,14 +215,18 @@ export default function Generate() {
     }
   }
 
-  if (step === 'review' && result) {
+  if (step === 'review' && brief) {
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <button onClick={() => setStep('form')} className="text-navy hover:text-navy-light text-sm font-sans flex items-center gap-1">
-            ← Back to form
+            ← Back
           </button>
           <h1 className="text-2xl font-serif font-bold text-navy-dark">Review & Save</h1>
+          <div className="flex gap-2 ml-auto">
+            <span className="text-xs bg-navy/10 text-navy px-2 py-1 rounded-lg font-sans">{form.platform}</span>
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg font-sans">{form.pillar}</span>
+          </div>
         </div>
 
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">{error}</div>}
@@ -180,74 +236,194 @@ export default function Generate() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-serif font-bold text-navy-dark">Post Copy</h2>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(result.copy)}>
-                Copy text
-              </Button>
-              <Button variant="outline" size="sm" loading={generatingCopy} onClick={handleRegenerateCopy}>
+              <button
+                onClick={handleCopyText}
+                className={`text-xs px-3 py-1.5 rounded-lg border font-sans transition-all ${
+                  copiedText
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'border-gray-200 text-gray-500 hover:text-navy hover:border-navy/30'
+                }`}
+              >
+                {copiedText ? 'Copied!' : 'Copy text'}
+              </button>
+              <Button variant="outline" size="sm" loading={loading} onClick={handleRegenerateCopy}>
                 Regenerate
               </Button>
             </div>
           </div>
-          {generatingCopy ? (
+          {loading ? (
             <LoadingSpinner text="Rewriting with Claude…" className="py-8" />
           ) : (
-            <p className="text-sm leading-relaxed text-gray-800 whitespace-pre-wrap">{result.copy}</p>
+            <textarea
+              value={copy}
+              onChange={e => setCopy(e.target.value)}
+              rows={8}
+              className="w-full text-sm leading-relaxed text-gray-800 font-sans border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-navy resize-none"
+            />
           )}
         </div>
 
-        {/* Ad copy */}
-        {result.headline && (
-          <div className="bg-purple-50 rounded-2xl border border-purple-100 p-6">
-            <h2 className="font-serif font-bold text-navy-dark mb-3">Ad Copy</h2>
-            <div className="space-y-2 text-sm">
-              <div><span className="font-semibold">Headline:</span> {result.headline}</div>
-              <div><span className="font-semibold">Primary text:</span> {result.primary_text}</div>
-              <div><span className="font-semibold">Description:</span> {result.description}</div>
+        {/* Image content details */}
+        {(brief.headlineText || brief.proofPoints || brief.ctaText) && (
+          <div className="bg-navy/5 rounded-2xl border border-navy/10 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <h2 className="font-serif font-bold text-navy-dark">Image Content</h2>
+              {brief.imageMode && (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold font-sans ${
+                  brief.imageMode === 'BRAND_GRAPHIC' ? 'bg-gold/20 text-gold' :
+                  brief.imageMode === 'SCENE' ? 'bg-teal/20 text-teal' :
+                  'bg-navy/20 text-navy'
+                }`}>{brief.imageMode}</span>
+              )}
             </div>
+
+            {brief.headlineText && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 font-sans">Headline on image</p>
+                <p className="text-xl font-bold text-navy-dark">{brief.headlineText}</p>
+                {brief.subheadlineText && <p className="text-sm text-gray-600 mt-1">{brief.subheadlineText}</p>}
+              </div>
+            )}
+
+            {brief.proofPoints && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 font-sans">Proof points</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap font-sans">{brief.proofPoints}</p>
+              </div>
+            )}
+
+            {brief.ctaText && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 font-sans">CTA text</p>
+                <p className="text-sm font-semibold text-navy">{brief.ctaText}</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Visual brief */}
-        <div className="bg-teal/5 rounded-2xl border border-teal/20 p-6">
-          <h2 className="font-serif font-bold text-navy-dark mb-2">Visual Brief</h2>
-          <p className="text-sm text-gray-700 italic">{result.visual_brief}</p>
-        </div>
-
-        {/* Images */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-serif font-bold text-navy-dark">Generated Images</h2>
-            <Button variant="outline" size="sm" loading={generatingImages} onClick={handleRegenerateImages}>
-              Regenerate images
-            </Button>
+        {brief.visualBrief && (
+          <div className="bg-teal/5 rounded-2xl border border-teal/20 p-6">
+            <h2 className="font-serif font-bold text-navy-dark mb-2">Visual Brief</h2>
+            <p className="text-sm text-gray-700 italic">{brief.visualBrief}</p>
           </div>
-          {generatingImages ? (
-            <div className="py-12">
-              <LoadingSpinner size="lg" text="Generating 3 variations with DALL-E 3… this takes about 30 seconds" />
-            </div>
-          ) : images.length > 0 ? (
-            <div className="grid grid-cols-3 gap-4">
-              {images.map((url, i) => (
-                <div
-                  key={i}
-                  onClick={() => setSelectedImage(url)}
-                  className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all ${
-                    selectedImage === url ? 'border-gold shadow-lg ring-2 ring-gold/50' : 'border-gray-200 hover:border-navy/40'
+        )}
+
+        {/* Image prompt */}
+        {brief.imagePrompt && (
+          <div className="bg-navy-dark rounded-2xl p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="font-serif font-bold text-white">Image Prompt</h2>
+                <p className="text-xs text-white/50 font-sans mt-0.5">Ready to paste into OpenAI Images</p>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  onClick={handleCopyPrompt}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-sans transition-all ${
+                    copiedPrompt
+                      ? 'bg-green-900/50 border-green-600 text-green-400'
+                      : 'border-white/20 text-white/70 hover:text-white hover:border-white/40'
                   }`}
                 >
-                  <img src={url} alt={`Variation ${i + 1}`} className="w-full aspect-square object-cover" />
-                  {selectedImage === url && (
-                    <div className="bg-gold text-white text-center text-xs py-1 font-semibold">Selected</div>
-                  )}
-                </div>
-              ))}
+                  {copiedPrompt ? 'Copied!' : 'Copy prompt'}
+                </button>
+                <a
+                  href={OPENAI_IMAGES_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-gold/40 text-gold hover:bg-gold/10 font-sans transition-all"
+                >
+                  Open OpenAI Images ↗
+                </a>
+              </div>
+            </div>
+            <p className="text-sm text-white/80 font-sans leading-relaxed whitespace-pre-wrap">{brief.imagePrompt}</p>
+          </div>
+        )}
+
+        {/* Upload finished image */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-serif font-bold text-navy-dark mb-1">Upload Finished Image</h2>
+          <p className="text-xs text-gray-400 font-sans mb-4">Generated in OpenAI Images? Upload it here.</p>
+
+          {uploadedImage ? (
+            <div className="space-y-3">
+              <div className="relative w-48">
+                <img
+                  src={uploadedImage.preview}
+                  alt="Uploaded"
+                  className="w-48 h-48 object-cover rounded-xl border border-gray-200"
+                />
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-white/70 rounded-xl flex items-center justify-center">
+                    <LoadingSpinner size="sm" text="Uploading…" />
+                  </div>
+                )}
+                {uploadedImage.url && (
+                  <div className="absolute top-2 right-2 bg-green-500 text-white text-xs rounded-full px-2 py-0.5 font-sans">
+                    Uploaded ✓
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => { setUploadedImage(null); fileInputRef.current?.click() }}
+                className="text-xs text-gray-400 hover:text-navy font-sans underline"
+              >
+                Replace image
+              </button>
             </div>
           ) : (
-            <p className="text-sm text-gray-400 text-center py-8">No images generated yet</p>
+            <div
+              onDragOver={e => { e.preventDefault(); setDragging(true) }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
+                dragging ? 'border-navy bg-navy/5' : 'border-gray-200 hover:border-navy/40 hover:bg-gray-50'
+              }`}
+            >
+              <p className="text-sm font-semibold text-gray-600 font-sans mb-1">Drag & drop or click to upload</p>
+              <p className="text-xs text-gray-400 font-sans">JPG, PNG, WEBP accepted</p>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={e => handleFileSelect(e.target.files[0])}
+          />
+
+          {!uploadedImage && (
+            <p className="text-xs text-gray-400 font-sans mt-3">
+              No image? Post saves as draft — you can add an image later.
+            </p>
           )}
         </div>
 
-        {/* Schedule date */}
+        {/* Canva notes */}
+        {brief.canvaNotes && (
+          <div className="bg-gold/5 rounded-2xl border border-gold/20 p-6">
+            <h2 className="font-serif font-bold text-navy-dark mb-2">Canva Notes</h2>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap font-sans">{brief.canvaNotes}</p>
+          </div>
+        )}
+
+        {/* Ad copy */}
+        {brief.adHeadline && (
+          <div className="bg-purple-50 rounded-2xl border border-purple-100 p-6">
+            <h2 className="font-serif font-bold text-navy-dark mb-3">Ad Copy</h2>
+            <div className="space-y-2 text-sm font-sans">
+              <div><span className="font-semibold">Headline:</span> {brief.adHeadline}</div>
+              <div><span className="font-semibold">Primary:</span> {brief.adPrimary}</div>
+              <div><span className="font-semibold">Description:</span> {brief.adDescription}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-serif font-bold text-navy-dark mb-3">Schedule</h2>
           <input
@@ -258,14 +434,22 @@ export default function Generate() {
           />
         </div>
 
-        {/* Save actions */}
-        <div className="flex flex-wrap gap-3">
-          <Button variant="primary" size="lg" loading={saving} onClick={() => handleSave('approved')}>
-            Approve & schedule
+        {/* Actions */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <Button
+            variant="primary"
+            size="lg"
+            loading={saving || uploadingImage}
+            onClick={() => handleSave('approved')}
+          >
+            {uploadedImage?.url ? 'Save & approve' : 'Approve (no image)'}
           </Button>
           <Button variant="outline" size="lg" loading={saving} onClick={() => handleSave('draft')}>
             Save as draft
           </Button>
+          {!uploadedImage && (
+            <p className="text-xs text-gray-400 font-sans">No image uploaded — will save as draft regardless</p>
+          )}
         </div>
       </div>
     )
@@ -318,6 +502,22 @@ export default function Generate() {
           </div>
         </Field>
 
+        <Field label="Tone">
+          <div className="grid grid-cols-4 gap-2">
+            {TONES.map(t => (
+              <button
+                key={t}
+                onClick={() => set('tone', t)}
+                className={`py-2 px-2 rounded-xl text-xs font-semibold border-2 capitalize transition-all font-sans ${
+                  form.tone === t ? 'border-navy bg-navy text-white' : 'border-gray-200 text-gray-600 hover:border-navy/40'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </Field>
+
         {form.postType === 'paid' && (
           <>
             <Field label="Ad Objective">
@@ -351,14 +551,20 @@ export default function Generate() {
           />
         </Field>
 
+        {loading && progress && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700 font-sans">
+            {progress}
+          </div>
+        )}
+
         <Button
           variant="primary"
           size="lg"
           className="w-full"
-          loading={generatingCopy}
+          loading={loading}
           onClick={handleGenerate}
         >
-          {generatingCopy ? 'Writing with Claude…' : 'Generate content'}
+          {loading ? (progress || 'Generating with Claude…') : 'Generate content'}
         </Button>
       </div>
     </div>

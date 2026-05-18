@@ -1,20 +1,40 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { format, isWithinInterval, startOfDay, endOfDay, addDays, startOfMonth, endOfMonth } from 'date-fns'
 import { usePosts } from '../hooks/usePosts'
 import { generateDashboardInsight } from '../lib/anthropic'
+import { generateWeekBatch } from '../lib/claudeAgent'
 import { StatCard } from '../components/ui/Card'
 import { PlatformBadge, StatusBadge } from '../components/ui/Badge'
 import PostDetailModal from '../components/posts/PostDetailModal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import Button from '../components/ui/Button'
 
 const INSIGHT_CACHE_KEY = 'asg_dashboard_insight'
 const INSIGHT_TTL = 7 * 24 * 60 * 60 * 1000
 
+function getMonday(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  d.setDate(diff)
+  return d
+}
+
+const DEFAULT_SCHEDULE = { LinkedIn: 4, Instagram: 5, Facebook: 3, 'Google Business': 1 }
+
 export default function Dashboard() {
+  const navigate = useNavigate()
   const { posts, fetchPosts, loading } = usePosts()
   const [selectedPost, setSelectedPost] = useState(null)
   const [insight, setInsight] = useState('')
   const [insightLoading, setInsightLoading] = useState(false)
+  const [batchOpen, setBatchOpen] = useState(false)
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchProgress, setBatchProgress] = useState('')
+  const [batchCompleted, setBatchCompleted] = useState(0)
+  const [batchTotal, setBatchTotal] = useState(0)
+  const [weekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0])
 
   useEffect(() => {
     fetchPosts()
@@ -93,6 +113,30 @@ export default function Dashboard() {
     }
   }
 
+  const totalBatchPosts = Object.values(DEFAULT_SCHEDULE).reduce((s, n) => s + n, 0)
+
+  async function handleBatchGenerate() {
+    setBatchRunning(true)
+    setBatchCompleted(0)
+    setBatchTotal(totalBatchPosts)
+    setBatchProgress('Starting batch generation...')
+    try {
+      await generateWeekBatch({
+        weekStart,
+        postingSchedule: DEFAULT_SCHEDULE,
+        onProgress: setBatchProgress,
+        onPostComplete: (post, completed, total) => {
+          setBatchCompleted(completed)
+          setBatchTotal(total)
+        }
+      })
+      navigate('/approvals')
+    } catch (err) {
+      setBatchProgress('Batch failed: ' + err.message)
+      setBatchRunning(false)
+    }
+  }
+
   if (loading && posts.length === 0) {
     return <div className="flex items-center justify-center h-96"><LoadingSpinner size="lg" text="Loading dashboard…" /></div>
   }
@@ -134,6 +178,74 @@ export default function Dashboard() {
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Batch generation card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="font-serif font-bold text-navy-dark mb-1">Generate this week</h2>
+            <p className="text-sm text-gray-500 font-sans">
+              Week of {format(new Date(weekStart), 'd MMMM')} —{' '}
+              {Object.entries(DEFAULT_SCHEDULE).map(([p, n]) => `${n} ${p}`).join(', ')} — {totalBatchPosts} posts total
+            </p>
+            {batchRunning && (
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <LoadingSpinner size="sm" />
+                  <p className="text-sm text-navy font-sans">{batchProgress}</p>
+                </div>
+                {batchTotal > 0 && (
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-400 font-sans mb-1">
+                      <span>Progress</span>
+                      <span>{batchCompleted} / {batchTotal}</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-navy rounded-full transition-all duration-500"
+                        style={{ width: `${batchTotal > 0 ? (batchCompleted / batchTotal) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {!batchRunning && (
+            <div className="flex-shrink-0">
+              {!batchOpen ? (
+                <Button variant="outline" onClick={() => setBatchOpen(true)}>
+                  Generate week →
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="primary" onClick={handleBatchGenerate}>
+                    Confirm — generate {totalBatchPosts} posts
+                  </Button>
+                  <Button variant="ghost" onClick={() => setBatchOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {batchOpen && !batchRunning && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-4 gap-3">
+              {Object.entries(DEFAULT_SCHEDULE).map(([platform, count]) => (
+                <div key={platform} className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-lg font-bold text-navy-dark">{count}</p>
+                  <p className="text-xs text-gray-500 font-sans">{platform}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 font-sans mt-3">
+              Posts will be saved as pending approval and sent to the Approvals queue. Takes 5–10 minutes.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Due this week */}
